@@ -48,3 +48,4 @@ class FriendshipManagement(ModelViewsetMixin):
         serializer = self.get_serializer(queryset, many=True)
         return Response(data={'result': serializer.data}, status=status.HTTP_200_OK)
 
+
