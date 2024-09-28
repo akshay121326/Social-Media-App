@@ -9,7 +9,8 @@ class BlockSerializer(serializers.ModelSerializer):
         fields = ['blocker','blocked']
 
 class FriendRequestSerializer(serializers.ModelSerializer):
-
+    status = serializers.CharField(required=False)
+    
     class Meta:
         model = FriendRequest
-        fields = ['sender','receiver']
+        fields = ['sender','receiver','status' ]

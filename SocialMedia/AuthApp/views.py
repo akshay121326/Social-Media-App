@@ -15,6 +15,7 @@ from .pagenations import CustomPagination
 from .filters import UserFilter
 from django_filters import rest_framework as filters
 from .mixins import ModelViewsetMixin
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -25,6 +26,14 @@ class UserViewSet(ModelViewsetMixin):
     serializer_class = UserSignupSerializer
     action_serializer = {'list':UserListSerializer,}
     search_fields = ['email','first_name','last_name']
+
+    def get_queryset(self):
+        if self.action == 'list':
+            # Exclude people who blocked you and People whom I have blocked.
+            self.queryset = User.objects.exclude(
+                Q(blocker__blocked=self.request.user.id)|Q(blocked__blocker=self.request.user.id)
+            ).distinct()
+        return super().get_queryset()
 
     def get_permissions(self):
         if self.action == 'create':
@@ -73,6 +82,7 @@ class LoginView(views.APIView):
         email = request.data.get('email',None)
         password = request.data.get('password',None)
         user_kwargs = {'username':username} if username else {'email':email} if email else None
+        print(f"\033[34m user_kwargs:{user_kwargs}\033[0m")
         if user_kwargs:
             user = get_object_or_404(User,**user_kwargs)
             username = user.username

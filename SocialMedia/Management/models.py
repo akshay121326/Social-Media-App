@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from datetime import datetime
 
 User = get_user_model()
 
@@ -16,7 +17,13 @@ class FriendRequest(models.Model):
     receiver = models.ForeignKey(User, related_name='received_requests', on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=status_choices, default='P')
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(blank=True,null=True)
 
+    def save(self,*args,**kwargs):
+        if self.pk:
+            self.modified_at = datetime.now()
+        return super.save(*args,**kwargs)
+    
     class Meta:
         unique_together = ('sender', 'receiver')
 
