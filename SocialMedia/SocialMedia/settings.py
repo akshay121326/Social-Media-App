@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'AuthApp',
     'Management'
 ]
@@ -111,17 +112,21 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
 }
 
 
 import datetime
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=200),  # Set access token lifetime
-    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),  # Set refresh token lifetime
-    'ROTATE_REFRESH_TOKENS': True,  # Enable rotating refresh tokens
-    'BLACKLIST_AFTER_ROTATION': True,  # Enable blacklisting of old refresh tokens
-    'AUTH_HEADER_TYPES': ('Bearer',),  # Default to Bearer
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=200),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 

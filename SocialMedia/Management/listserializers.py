@@ -10,11 +10,13 @@ class BlockListSerializer(serializers.ModelSerializer):
         fields = ['id','blocked','created_at']
 
 class FriendListSerializer(serializers.ModelSerializer):
-    friendship = serializers.DateTimeField(format="%b %d, %Y")
-    
+    friendship = serializers.DateTimeField(format="%b %d, %Y",required=False)
+    status = serializers.CharField(required=False)
+    senton = serializers.DateTimeField(format="%b %d, %Y",required=False)
+
     class Meta:
         model = User
-        fields = ['id','first_name','last_name','friendship']
+        fields = ['id','first_name','last_name','friendship','status','senton']
 
 class FriendRequestListSerializer(serializers.ModelSerializer):
     sender = UserLookupSerializer()

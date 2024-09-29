@@ -6,8 +6,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from .serializers import *
 from .listserializers import *
-from django.db.models import Value,F,Q,When,Case,ExpressionWrapper, DurationField
-from django.db.models.functions import Now
+from django.db.models import Value,F,Q,When,Case
+from AuthApp.throttlers import CustomUserThrottle
 
 
 class FriendshipManagement(ModelViewsetMixin):
@@ -17,14 +17,37 @@ class FriendshipManagement(ModelViewsetMixin):
     action_serializer = {
         'show_requests':FriendRequestListSerializer,
         'block_user':BlockSerializer,
-        'friend_list':FriendListSerializer
+        'friend_list':FriendListSerializer,
+        'sent_requests':FriendListSerializer
     }
+
+    def get_ordering(self):
+        print(f"\033[36m get_ordering called XXXXX\033[0m")
+        match self.action:
+            case 'friend_list':
+                return ['-id','id','first_name','-first_name','last_name','-last_name']
+            case 'show_requests':
+                return ['-created_at','first_name','-first_name','last_name','-last_name']
+            case 'sent_requests':
+                return ['-senton','senton','first_name','-first_name','last_name','-last_name']
+        return super().get_ordering()
+
+    def get_search_fields(self):
+        print(f"\033[36m get_search_fields called XXXXX\033[0m")
+        match self.action:
+            case 'friend_list':
+                return ['first_name','last_name']
+            case 'show_requests':
+                return ['first_name','last_name']
+            case 'friend_list':
+                return ['first_name','last_name']
+        return super().get_ordering()
 
     def get_queryset(self):
         if self.action == 'show_requests':
-            self.queryset = FriendRequest.objects.filter(receiver=self.request.user.id)
+            return FriendRequest.objects.filter(receiver=self.request.user.id)
         elif self.action == 'friend_list':
-            self.queryset = User.objects.filter(
+            return User.objects.filter(
                 Q(
                     Q(received_requests__sender=self.request.user.id,received_requests__status='A')
                     |Q(sent_requests__receiver=self.request.user.id,sent_requests__status='A')
@@ -45,10 +68,31 @@ class FriendshipManagement(ModelViewsetMixin):
                     output_field=models.DateTimeField()
                 )
             )
-            print(f"\033[33m self.queryset {self.queryset.values('friendship')}\033[0m")
+        elif self.action == 'sent_requests':
+            return User.objects.filter(
+                received_requests__sender = self.request.user.id
+            ).annotate(
+                status = Case(
+                    When(
+                        received_requests__status = 'A',
+                        then = Value('Accepted')
+                    ),
+                    When(
+                        received_requests__status = 'P',
+                        then = Value('Pending')
+                    ),
+                    When(
+                        received_requests__status = 'A',
+                        then = Value('Cancelled')
+                    ),
+                    default=Value(''),
+                    output_field=models.CharField()
+                ),
+                senton = F('received_requests__created_at')
+            )
         return super().get_queryset()
 
-    @action(detail=True,methods=['put'])
+    @action(detail=True,methods=['put'],throttle_classes=[CustomUserThrottle])
     def send_request(self,request,pk=None):
         receiver = get_object_or_404(User,id=pk)
         serializer = FriendRequestSerializer(data={'receiver':pk,'sender':request.user.id})
@@ -82,27 +126,33 @@ class FriendshipManagement(ModelViewsetMixin):
                     return Response(data={'result':'Friend request rejected !!!'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    def get_paginated_response_data(self, request, queryset):
+        """
+        Handles filtering, pagination, and serialization of the queryset.
+        Used for Listing of: 
+            1. sent requests 2. Friends List 3. All recieved request
+        """
+        filtered_queryset = self.filter_queryset(queryset)
+        page = self.paginate_queryset(filtered_queryset)
+        serializer = self.get_serializer(page, many=True) if page is not None else self.get_serializer(filtered_queryset, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(data={'result': serializer.data}, status=status.HTTP_200_OK)
+
     @action(detail=False,methods=['get'])
     def show_requests(self,request):
-        """List of friend requests"""
         queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(data={'result': serializer.data}, status=status.HTTP_200_OK)
+        return self.get_paginated_response_data(request=request,queryset=queryset)
+
+    @action(detail=False,methods=['get'])
+    def sent_requests(self,request,):
+        queryset = self.get_queryset()
+        return self.get_paginated_response_data(request=request,queryset=queryset)
     
     @action(detail=False,methods=['get'])
-    def friend_list(self,request):
+    def friend_list(self, request):
         queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset) 
-        print(f"\033[33m queryset:{queryset}\033[0m")
-        if page is not None:
-            serializer = self.get_serializer(page,many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(data={'result': serializer.data}, status=status.HTTP_200_OK)
+        return self.get_paginated_response_data(request=request,queryset=queryset)
 
 
 

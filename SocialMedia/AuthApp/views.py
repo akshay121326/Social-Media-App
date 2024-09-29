@@ -1,7 +1,7 @@
 from rest_framework import views,viewsets
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import action,permission_classes
+from rest_framework.decorators import action,permission_classes,throttle_classes
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt import serializers
@@ -16,6 +16,7 @@ from .filters import UserFilter
 from django_filters import rest_framework as filters
 from .mixins import ModelViewsetMixin
 from django.db.models import Q
+from .throttlers import CustomAnonRateTrottle
 
 User = get_user_model()
 
@@ -42,6 +43,7 @@ class UserViewSet(ModelViewsetMixin):
             self.permission_classes = [IsAuthenticated]
 
         return super().get_permissions()
+
 
     def create(self,request):
         serializer = UserSignupSerializer(data=request.data)
@@ -77,6 +79,7 @@ class UserViewSet(ModelViewsetMixin):
 class LoginView(views.APIView):
     permission_classes = [AllowAny]
 
+    @throttle_classes([CustomAnonRateTrottle])
     def post(self,request):
         username = request.data.get('username',None)
         email = request.data.get('email',None)
@@ -97,6 +100,19 @@ class LoginView(views.APIView):
                 return Response(data=http_response,status=status.HTTP_200_OK)
             return Response(data={'message':'No active account found with the given credentials'},status=status.HTTP_200_OK)
         raise serializers.ValidationError('Username required !!!')
+    
+class LogoutView(views.APIView):
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Blacklist the token
+
+            return Response({"result": "Logout successful"}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            print(f"\033[36m error {e}\033[0m")
+            return Response({"error": "Invalid token or token not provided"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
