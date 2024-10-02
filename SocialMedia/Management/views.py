@@ -1,13 +1,14 @@
 from AuthApp.mixins import ModelViewsetMixin
 from .models import *
 from rest_framework.decorators import action
-from rest_framework import status
+from rest_framework import status,views
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from .serializers import *
 from .listserializers import *
 from django.db.models import Value,F,Q,When,Case
 from AuthApp.throttlers import CustomUserThrottle
+from auditlog.models import LogEntry
 
 
 class FriendshipManagement(ModelViewsetMixin):
@@ -201,10 +202,13 @@ class BlockViewSet(ModelViewsetMixin):
         data = self.get_queryset().filter(blocked=pk).delete()
         print(data)
         return Response(data={'result':'User unblocked successfully'},status=status.HTTP_200_OK)
-        
 
 
+class ActivityTrackView(views.APIView):
+    serializer_class = None
 
-
-
-
+    def get(self,request):
+        user = request.user.id
+        queryset = LogEntry.objects.filter(actor=user)
+        print(f"\033[34m queryset:{queryset}\033[0m")
+        return Response(data={'result':'succes'},status=status.HTTP_200_OK)

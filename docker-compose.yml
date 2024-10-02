@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver
+    volumes:
+      - .:/SOCIAL-MEDIA-APP
+    ports:
+      - "8000:8000"
